@@ -1,7 +1,10 @@
 const fmtUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const fmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 });
 const fields = ["auDeposit", "startPrice", "availableUsdt", "lowerPrice", "upperPrice", "feeRate", "buySize", "sellSize"];
+const launchFields = ["launchAuAmount", "launchStartPrice", "launchLowerPrice", "launchUpperPrice"];
 let lastSnapshot = null;
+let appConfig = null;
+let connectedWallet = "";
 
 document.querySelectorAll("nav button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -15,6 +18,7 @@ document.querySelectorAll("nav button").forEach((button) => {
 async function loadConfig() {
   const response = await fetch("/api/config");
   const data = await response.json();
+  appConfig = data.config;
   document.getElementById("contractAddress").textContent = data.config.tokens.au.address;
   const plan = data.config.liquidityPlan;
   document.getElementById("auDeposit").value = plan.auDeposit;
@@ -22,6 +26,11 @@ async function loadConfig() {
   document.getElementById("lowerPrice").value = plan.lowerPrice;
   document.getElementById("upperPrice").value = plan.upperPrice;
   document.getElementById("feeRate").value = plan.feeTier / 1000000;
+  document.getElementById("launchAuAmount").value = plan.auDeposit;
+  document.getElementById("launchStartPrice").value = plan.startPrice;
+  document.getElementById("launchLowerPrice").value = plan.lowerPrice;
+  document.getElementById("launchUpperPrice").value = plan.upperPrice;
+  updateLaunchMath();
   await updatePlan();
 }
 
@@ -161,10 +170,116 @@ function renderHistory(history) {
   }).join("") : `<tr><td colspan="5">No snapshots stored yet.</td></tr>`;
 }
 
+function updateLaunchMath() {
+  const au = Number(document.getElementById("launchAuAmount").value || 0);
+  const price = Number(document.getElementById("launchStartPrice").value || 0);
+  const lower = Number(document.getElementById("launchLowerPrice").value || 0);
+  const upper = Number(document.getElementById("launchUpperPrice").value || 0);
+  const usdt = au * price;
+  document.getElementById("walletUsdtNeeded").textContent = fmtUsd.format(usdt);
+  document.getElementById("walletUsdtText").textContent = `For ${fmt.format(au)} AU at ${fmtUsd.format(price)}`;
+  document.getElementById("launchRule").textContent = `To create an active AU/USDT pool at ${fmtUsd.format(price)}, deposit ${fmt.format(au)} AU and about ${fmtUsd.format(usdt)} USDT. Suggested active range: ${fmtUsd.format(lower)} to ${fmtUsd.format(upper)}.`;
+  document.getElementById("launchTokenDetails").textContent = `AU / Autody: ${appConfig?.tokens?.au?.address || "0xE35Ba492b2C7e58FA6691dd631B3b6c7FE5D4914"}
+USDT on Polygon: ${appConfig?.tokens?.usdt?.address || "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"}
+Fee tier: 0.30%
+Start price: ${fmtUsd.format(price)}
+Range: ${fmtUsd.format(lower)} to ${fmtUsd.format(upper)}
+AU deposit: ${fmt.format(au)}
+USDT side: ${fmtUsd.format(usdt)}`;
+}
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    document.getElementById("walletStatus").textContent = "No wallet";
+    document.getElementById("walletAddress").textContent = "Install MetaMask or a browser wallet.";
+    return;
+  }
+  const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+  connectedWallet = accounts[0] || "";
+  document.getElementById("walletStatus").textContent = connectedWallet ? "Connected" : "Not connected";
+  document.getElementById("walletAddress").textContent = connectedWallet || "No account returned";
+  await updateWalletNetwork();
+  await updateWalletBalances();
+}
+
+async function updateWalletNetwork() {
+  if (!window.ethereum) return;
+  const chainId = await window.ethereum.request({ method: "eth_chainId" });
+  const isPolygon = chainId.toLowerCase() === "0x89";
+  document.getElementById("networkStatus").textContent = isPolygon ? "Polygon" : `Wrong chain ${chainId}`;
+}
+
+async function switchToPolygon() {
+  if (!window.ethereum) return;
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x89" }] });
+  } catch (error) {
+    if (error.code === 4902) {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: "0x89",
+          chainName: "Polygon Mainnet",
+          nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
+          rpcUrls: ["https://polygon-bor-rpc.publicnode.com"],
+          blockExplorerUrls: ["https://polygonscan.com"]
+        }]
+      });
+    } else {
+      throw error;
+    }
+  }
+  await updateWalletNetwork();
+  await updateWalletBalances();
+}
+
+async function addAuToken() {
+  if (!window.ethereum || !appConfig) return;
+  await window.ethereum.request({
+    method: "wallet_watchAsset",
+    params: {
+      type: "ERC20",
+      options: {
+        address: appConfig.tokens.au.address,
+        symbol: "AU",
+        decimals: 18,
+        image: "https://autody-liquidity-manager.onrender.com/favicon.ico"
+      }
+    }
+  });
+}
+
+async function updateWalletBalances() {
+  if (!window.ethereum || !connectedWallet || !appConfig) return;
+  const chainId = await window.ethereum.request({ method: "eth_chainId" });
+  if (chainId.toLowerCase() !== "0x89") {
+    document.getElementById("walletAuBalance").textContent = "--";
+    return;
+  }
+  const balanceHex = await window.ethereum.request({
+    method: "eth_call",
+    params: [{
+      to: appConfig.tokens.au.address,
+      data: `0x70a08231000000000000000000000000${connectedWallet.slice(2).toLowerCase()}`
+    }, "latest"]
+  });
+  const balance = Number(BigInt(balanceHex)) / 1e18;
+  document.getElementById("walletAuBalance").textContent = `${fmt.format(balance)} AU`;
+}
+
 fields.forEach((id) => document.getElementById(id).addEventListener("input", updatePlan));
+launchFields.forEach((id) => document.getElementById(id).addEventListener("input", updateLaunchMath));
 document.getElementById("refreshLive").addEventListener("click", refreshLive);
 document.getElementById("runSnapshot").addEventListener("click", runSnapshot);
 document.getElementById("refreshHistory").addEventListener("click", refreshHistory);
+document.getElementById("connectWallet").addEventListener("click", connectWallet);
+document.getElementById("switchPolygon").addEventListener("click", switchToPolygon);
+document.getElementById("addAuToken").addEventListener("click", addAuToken);
+window.ethereum?.on?.("accountsChanged", () => connectWallet());
+window.ethereum?.on?.("chainChanged", () => {
+  updateWalletNetwork();
+  updateWalletBalances();
+});
 loadConfig().catch((error) => {
   document.getElementById("liveOutput").textContent = error.message;
   updatePlan();

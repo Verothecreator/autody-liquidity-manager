@@ -19,6 +19,7 @@
       <nav>
         <button class="active" data-view="overview">Overview</button>
         <button data-view="planner">Planner</button>
+        <button data-view="launch">Pool Launch</button>
         <button data-view="live">Live Polygon</button>
         <button data-view="history">History</button>
         <button data-view="deploy">VPS Deploy</button>
@@ -119,6 +120,67 @@
             <h3>Funding Rule</h3>
             <p>An active AU/USDT market needs both sides. You can deposit Autody first, but USDT liquidity or real USDT buyers are what make the pool tradable around a dollar price.</p>
           </div>
+        </div>
+      </section>
+
+      <section id="launch" class="view">
+        <div class="hero-panel">
+          <div>
+            <span class="eyebrow">Owner action</span>
+            <h3>Create AU/USDT liquidity</h3>
+            <p>Connect the owner wallet, confirm Polygon, check AU balance, then open the DEX liquidity page to create the first trading pool.</p>
+          </div>
+          <button id="connectWallet">Connect wallet</button>
+        </div>
+
+        <div class="cards">
+          <div class="card"><span>Wallet</span><strong id="walletStatus">Not connected</strong><small id="walletAddress">Connect MetaMask or browser wallet</small></div>
+          <div class="card"><span>Network</span><strong id="networkStatus">--</strong><small>Required: Polygon mainnet</small></div>
+          <div class="card"><span>AU balance</span><strong id="walletAuBalance">--</strong><small>Autody in connected wallet</small></div>
+          <div class="card"><span>USDT required</span><strong id="walletUsdtNeeded">$70,000</strong><small id="walletUsdtText">For 10,000 AU at $7</small></div>
+        </div>
+
+        <div class="split">
+          <div class="panel">
+            <h3>Launch Settings</h3>
+            <div class="form-grid compact">
+              <label>AU to deposit <input id="launchAuAmount" type="number" value="10000" min="1" step="100"></label>
+              <label>Start price <input id="launchStartPrice" type="number" value="7" min="0.0001" step="0.01"></label>
+              <label>Lower range <input id="launchLowerPrice" type="number" value="7" min="0.0001" step="0.01"></label>
+              <label>Upper range <input id="launchUpperPrice" type="number" value="10" min="0.0001" step="0.01"></label>
+            </div>
+            <div class="launch-actions">
+              <button id="switchPolygon">Switch to Polygon</button>
+              <button id="addAuToken">Add AU to wallet</button>
+            </div>
+          </div>
+
+          <div class="panel warning">
+            <h3>Deposit Rule</h3>
+            <p id="launchRule">To create an active AU/USDT pool at $7, you need AU and matching USDT. With 10,000 AU, the USDT side is about $70,000.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Open DEX Liquidity Page</h3>
+          <div class="dex-grid">
+            <a class="dex-link" href="https://quickswap.exchange/#/pools" target="_blank" rel="noreferrer">
+              <strong>QuickSwap Pools</strong>
+              <span>Recommended Polygon-native route. Create AU/USDT and choose a v3/Algebra range if available.</span>
+            </a>
+            <a class="dex-link" href="https://app.uniswap.org/positions/create" target="_blank" rel="noreferrer">
+              <strong>Uniswap v3 Position</strong>
+              <span>Create a Polygon AU/USDT position with the 0.30% fee tier and $7-$10 range.</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Exact Token Details To Use</h3>
+          <pre id="launchTokenDetails">AU / Autody: 0xE35Ba492b2C7e58FA6691dd631B3b6c7FE5D4914
+USDT on Polygon: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+Fee tier: 0.30%
+Range: $7 to $10</pre>
         </div>
       </section>
 
