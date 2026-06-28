@@ -1,6 +1,7 @@
 const fmtUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const fmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 });
 const fields = ["auDeposit", "startPrice", "availableUsdt", "lowerPrice", "upperPrice", "feeRate", "buySize", "sellSize"];
+let lastSnapshot = null;
 
 document.querySelectorAll("nav button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -68,9 +69,104 @@ async function refreshLive() {
   }
 }
 
+async function runSnapshot() {
+  setOverviewLoading();
+  try {
+    const response = await fetch("/api/snapshot");
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || "Snapshot failed");
+    lastSnapshot = data.snapshot;
+    renderOverview(data.snapshot);
+    renderHistory(data.history || []);
+  } catch (error) {
+    document.getElementById("nextMove").textContent = `Full check failed: ${error.message}`;
+  }
+}
+
+async function refreshHistory() {
+  const response = await fetch("/api/history");
+  const data = await response.json();
+  renderHistory(data.history || []);
+}
+
+function setOverviewLoading() {
+  document.getElementById("readyScore").textContent = "...";
+  document.getElementById("readyStatus").textContent = "Checking Polygon and market indexers";
+  document.getElementById("nextMove").textContent = "Reading token contract, pool status, and market-pair visibility.";
+}
+
+function renderOverview(snapshot) {
+  const readiness = snapshot.readiness;
+  const polygon = snapshot.polygon;
+  const market = snapshot.market || {};
+  const poolCount = (polygon.pools || []).filter((pool) => pool.address).length;
+
+  document.getElementById("readyScore").textContent = `${readiness.score}%`;
+  document.getElementById("readyStatus").textContent = readiness.status;
+  document.getElementById("auSupply").textContent = fmt.format(Number(polygon.au.totalSupply.formatted || 0));
+  document.getElementById("pairCount").textContent = market.pairCount ?? 0;
+  document.getElementById("v3PoolCount").textContent = poolCount;
+  document.getElementById("readyItems").innerHTML = readiness.items.map((item) => `
+    <div class="check ${item.done ? "done" : ""}">
+      <span>${item.done ? "✓" : "!"}</span>
+      <strong>${item.label}</strong>
+    </div>
+  `).join("");
+  document.getElementById("marketRows").innerHTML = renderMarketRows(market.pairs || []);
+  document.getElementById("nextMove").innerHTML = nextMoveText(snapshot);
+}
+
+function renderMarketRows(pairs) {
+  if (!pairs.length) return `<tr><td colspan="5">No indexed pair found yet for AU.</td></tr>`;
+  return pairs.map((pair) => `
+    <tr>
+      <td>${pair.dexId || "--"}</td>
+      <td><a href="${pair.url}" target="_blank" rel="noreferrer">${pair.baseToken?.symbol || "AU"}/${pair.quoteToken?.symbol || "--"}</a></td>
+      <td>${pair.priceUsd ? fmtUsd.format(Number(pair.priceUsd)) : "--"}</td>
+      <td>${pair.liquidity?.usd ? fmtUsd.format(pair.liquidity.usd) : "--"}</td>
+      <td>${pair.volume?.h24 ? fmtUsd.format(pair.volume.h24) : "--"}</td>
+    </tr>
+  `).join("");
+}
+
+function nextMoveText(snapshot) {
+  const hasPair = Boolean(snapshot.market?.pairCount);
+  const hasV3Pool = Boolean(snapshot.polygon?.pools?.some((pool) => pool.address));
+  const supply = Number(snapshot.polygon?.au?.totalSupply?.formatted || 0);
+
+  if (supply < 10000) {
+    return "AU supply is lower than the planned pool size. Confirm whether the owner wallet can mint more or lower the starting deposit plan.";
+  }
+  if (!hasPair && !hasV3Pool) {
+    return "Create the first AU/USDT pool on Polygon, then add the pool address here so this portal can track it directly.";
+  }
+  if (!hasPair) {
+    return "A pool exists on-chain but no indexed market pair was found yet. Wait for indexing or submit/update the pair profile.";
+  }
+  return "Market visibility exists. The next layer is database-backed candle/liquidity history and owner alerts.";
+}
+
+function renderHistory(history) {
+  document.getElementById("historyRows").innerHTML = history.length ? history.map((item) => {
+    const pools = (item.polygon?.pools || []).filter((pool) => pool.address).length;
+    return `
+      <tr>
+        <td>${new Date(item.checkedAt).toLocaleString()}</td>
+        <td>${item.readiness?.score ?? "--"}%</td>
+        <td>${fmt.format(Number(item.polygon?.au?.totalSupply?.formatted || 0))}</td>
+        <td>${item.market?.pairCount ?? 0}</td>
+        <td>${pools}</td>
+      </tr>
+    `;
+  }).join("") : `<tr><td colspan="5">No snapshots stored yet.</td></tr>`;
+}
+
 fields.forEach((id) => document.getElementById(id).addEventListener("input", updatePlan));
 document.getElementById("refreshLive").addEventListener("click", refreshLive);
+document.getElementById("runSnapshot").addEventListener("click", runSnapshot);
+document.getElementById("refreshHistory").addEventListener("click", refreshHistory);
 loadConfig().catch((error) => {
   document.getElementById("liveOutput").textContent = error.message;
   updatePlan();
 });
+runSnapshot();
