@@ -1,0 +1,15 @@
+{
+  "name": "autody-liquidity-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autody AU/USDT Polygon liquidity planning and monitoring portal.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "monitor": "node worker/monitor.js",
+    "check": "node --check server.js && node --check worker/monitor.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

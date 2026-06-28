@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: autody-liquidity-manager
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: "node server.js"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: POLYGON_RPC_URL
+        value: https://polygon-bor-rpc.publicnode.com
+      - key: AU_TOKEN_ADDRESS
+        value: 0xE35Ba492b2C7e58FA6691dd631B3b6c7FE5D4914
+      - key: USDT_TOKEN_ADDRESS
+        value: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+      - key: TARGET_START_PRICE
+        value: 7
+      - key: TARGET_LOWER_PRICE
+        value: 7
+      - key: TARGET_UPPER_PRICE
+        value: 10
+      - key: DEFAULT_AU_DEPOSIT
+        value: 10000
+      - key: DEFAULT_FEE_TIER
+        value: 3000

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Autody Liquidity Manager</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <div class="logo">AU</div>
+        <div>
+          <h1>Autody</h1>
+          <p>Liquidity Manager</p>
+        </div>
+      </div>
+      <nav>
+        <button class="active" data-view="planner">Planner</button>
+        <button data-view="live">Live Polygon</button>
+        <button data-view="deploy">VPS Deploy</button>
+      </nav>
+      <div class="contract">
+        <span>AU contract</span>
+        <strong id="contractAddress">0xE35Ba...</strong>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h2>AU/USDT Control Room</h2>
+          <p>Plan Autody liquidity, inspect live Polygon data, and prepare the VPS monitor.</p>
+        </div>
+        <div class="badges">
+          <span>Polygon</span>
+          <span>AU/USDT</span>
+          <span>QuickSwap v3 ready</span>
+        </div>
+      </header>
+
+      <section id="planner" class="view active">
+        <div class="panel">
+          <h3>Pool Inputs</h3>
+          <div class="form-grid">
+            <label>AU deposit <input id="auDeposit" type="number" value="10000" min="1" step="100"></label>
+            <label>Start price <input id="startPrice" type="number" value="7" min="0.0001" step="0.01"></label>
+            <label>Available USDT <input id="availableUsdt" type="number" value="0" min="0" step="100"></label>
+            <label>Lower range <input id="lowerPrice" type="number" value="7" min="0.0001" step="0.01"></label>
+            <label>Upper range <input id="upperPrice" type="number" value="10" min="0.0001" step="0.01"></label>
+            <label>Fee tier
+              <select id="feeRate">
+                <option value="0.003">0.30% standard</option>
+                <option value="0.0005">0.05% deep/stable</option>
+                <option value="0.01">1.00% volatile</option>
+              </select>
+            </label>
+            <label>Test buy USDT <input id="buySize" type="number" value="100" min="1" step="10"></label>
+            <label>Test sell AU <input id="sellSize" type="number" value="15" min="1" step="1"></label>
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card"><span>USDT needed</span><strong id="neededUsdt">$0.00</strong><small id="neededSub"></small></div>
+          <div class="card"><span>Funding gap</span><strong id="fundingGap">$0.00</strong><small id="fundingSub"></small></div>
+          <div class="card"><span>Pool notional</span><strong id="poolNotional">$0.00</strong><small>AU side + USDT side</small></div>
+          <div class="card"><span>Range width</span><strong id="rangeWidth">0%</strong><small id="rangeSub"></small></div>
+        </div>
+
+        <div class="split">
+          <div class="panel">
+            <h3>Graph Movement</h3>
+            <table>
+              <thead><tr><th>Action</th><th>New price</th><th>Move</th><th>Output</th></tr></thead>
+              <tbody id="impactRows"></tbody>
+            </table>
+          </div>
+          <div class="panel warning">
+            <h3>Funding Rule</h3>
+            <p>An active AU/USDT market needs both sides. You can deposit Autody first, but USDT liquidity or real USDT buyers are what make the pool tradable around a dollar price.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="live" class="view">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Live Polygon Reader</h3>
+            <button id="refreshLive">Refresh</button>
+          </div>
+          <pre id="liveOutput">Click refresh to read AU, USDT, and Uniswap v3 pool status from Polygon.</pre>
+        </div>
+      </section>
+
+      <section id="deploy" class="view">
+        <div class="panel">
+          <h3>VPS Command Path</h3>
+          <pre>cp .env.example .env
+nano .env
+npm start
+
+# 24/7 later:
+npm install -g pm2
+pm2 start server.js --name autody-portal
+pm2 start worker/monitor.js --name autody-monitor
+pm2 save</pre>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
